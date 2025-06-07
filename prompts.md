@@ -51,3 +51,7 @@ Excellent. Now give the user the option of displaying all invalid tokens. If the
 
 - the value of the `urn` property
 - the `text` property highlighted so that valid characters are colored green and invalid characters are colored red
+
+---
+
+Thanks! Now remove the display of the first five tokens.

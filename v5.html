@@ -44,7 +44,7 @@
         .summary-stats p, .invalid-toggle {
             margin-bottom: 0.5em;
         }
-        .token-entry { /* Still used for the "all invalid tokens" list */
+        .token-entry {
             border-bottom: 1px dashed #eee;
             padding-bottom: 5px;
             margin-bottom: 5px;
@@ -58,7 +58,7 @@
             padding-top: 10px;
             border-top: 1px solid #ddd;
         }
-        h2, h3 { /* h3 still used for the "List of Invalid Token(s)" header */
+        h2, h3 {
             margin-top: 0;
             margin-bottom: 0.5em;
         }
@@ -133,7 +133,6 @@
                 if (validCharset.length === 0) { 
                     if (!initializeOrthography()) {
                         resultsArea.innerHTML = '<p class="error">Error: greeklib.js or `literarygreek` function not available. Cannot perform character validation.</p>';
-                        // Allow to continue if only char validation fails, but CEX/tokenization might still work
                     }
                 }
 
@@ -147,15 +146,15 @@
                         }
                         const ctsLines = ctsDataString.split('\n').filter(line => line.trim() !== '');
                         if (ctsLines.length === 0) {
-                            resultsArea.innerHTML = '<p class="error">The "ctsdata" block is empty or contains only whitespace.</p>';
+                            resultsArea.innerHTML = '<p class="error">The "ctsdata" block is empty.</p>';
                             return;
                         }
                         if (typeof greeklib === 'undefined' || typeof greeklib.tokenize !== 'function') {
-                            resultsArea.innerHTML = '<p class="error">greeklib.js is not loaded correctly or greeklib.tokenize is not a function. Cannot tokenize.</p>';
+                            resultsArea.innerHTML = '<p class="error">greeklib.tokenize is not available.</p>';
                             return;
                         }
                         const tokens = greeklib.tokenize(ctsLines);
-                        displayResults(tokens, ctsLines); // Pass ctsLines for checking if data was present but no tokens generated
+                        displayResults(tokens, ctsLines);
                     })
                     .catch(error => {
                         console.error('Failed to load or parse CEX from URL:', error);
@@ -191,7 +190,7 @@
             }
 
 
-            function displayResults(tokens, ctsLines) { 
+            function displayResults(tokens, ctsLines) { // Added ctsLines for a more robust empty check
                 resultsArea.innerHTML = ''; 
 
                 const header = document.createElement('h2');
@@ -238,8 +237,10 @@
                     summaryDiv.appendChild(warningP);
                 }
 
+                // --- UI for displaying all invalid tokens ---
                 const allInvalidTokensDisplayArea = document.createElement('div');
                 allInvalidTokensDisplayArea.id = 'allInvalidTokensArea';
+                // Initially hidden by not adding content / or could use CSS display:none
                 
                 if (invalidTokenCount > 0 && validCharset.length > 0) {
                     const toggleDiv = document.createElement('div');
@@ -251,40 +252,52 @@
                     
                     const label = document.createElement('label');
                     label.htmlFor = 'showInvalidTokensCheckbox';
-                    label.textContent = ' Show all invalid tokens';
+                    label.textContent = ' Show all invalid tokens'; // Leading space for visual separation
                     
                     toggleDiv.appendChild(checkbox);
                     toggleDiv.appendChild(label);
-                    summaryDiv.appendChild(toggleDiv); 
-                    resultsArea.appendChild(allInvalidTokensDisplayArea);
+                    summaryDiv.appendChild(toggleDiv); // Add checkbox to summary
+                    resultsArea.appendChild(allInvalidTokensDisplayArea); // Add display area to results
 
                     checkbox.addEventListener('change', (event) => {
                         if (event.target.checked) {
                             renderInvalidTokensList(invalidTokensDetails, allInvalidTokensDisplayArea);
                         } else {
-                            allInvalidTokensDisplayArea.innerHTML = ''; 
+                            allInvalidTokensDisplayArea.innerHTML = ''; // Clear the list
                         }
                     });
                 }
-                
-                // Removed the "First 5 Tokens" display section here
+                // --- End UI for invalid tokens ---
 
-                // Check if CEX data was loaded but no tokens were generated
-                if (tokens.length === 0 && ctsLines && ctsLines.length > 0) {
+                if (tokens.length > 0) {
+                    const firstTokensHeader = document.createElement('h3');
+                    firstTokensHeader.textContent = 'First 5 Tokens (with character validation):';
+                    resultsArea.appendChild(firstTokensHeader);
+
+                    const tokensToShow = tokens.slice(0, 5);
+                    tokensToShow.forEach(token => {
+                        const tokenDiv = document.createElement('div');
+                        tokenDiv.classList.add('token-entry');
+                        const highlightedHtml = getHighlightedTextHtml(token.text, validCharset);
+                        
+                        tokenDiv.innerHTML = `
+                            <strong>URN:</strong> ${token.urn}<br>
+                            <strong>Text (normalized):</strong> ${highlightedHtml}
+                        `;
+                        resultsArea.appendChild(tokenDiv);
+                    });
+                } else if (tokens.length === 0 && ctsLines && ctsLines.length > 0){
                     const noTokensP = document.createElement('p');
                     noTokensP.textContent = 'No tokens were generated from the corpus data, though CEX data was present.';
-                    resultsArea.appendChild(noTokensP); // Append to resultsArea directly after summary
-                } else if (tokens.length === 0 && (!ctsLines || ctsLines.length === 0)) {
-                    // This case is already handled by initial checks on ctsDataString and ctsLines
-                    // but added for completeness if needed.
+                    resultsArea.appendChild(noTokensP);
                 }
             }
 
             function renderInvalidTokensList(invalidTokenDetailsList, displayElement) {
-                displayElement.innerHTML = ''; 
+                displayElement.innerHTML = ''; // Clear previous content
 
                 if (invalidTokenDetailsList.length === 0) {
-                    displayElement.innerHTML = '<p>No invalid tokens to display (this should not happen if checkbox is visible).</p>';
+                    displayElement.innerHTML = '<p>No invalid tokens to display.</p>';
                     return;
                 }
 
