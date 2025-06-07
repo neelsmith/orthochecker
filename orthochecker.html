@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greek Corpus Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/gh/neelsmith/cex-lib/cex.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/neelsmith/greeklib@1.1.0/greeklib.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+            max-width: 600px;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resultsArea {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .token-entry {
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+            word-wrap: break-word; /* Ensure long tokens don't break layout */
+        }
+        .token-entry:last-child {
+            border-bottom: none;
+        }
+        h2, h3 {
+            margin-top: 0;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .valid-char {
+            color: green;
+        }
+        .invalid-char {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Greek Corpus Orthography Analyzer</h1>
+
+    <div>
+        <label for="corpusUrl">CEX Corpus URL:</label>
+        <input type="text" id="corpusUrl" value="https://raw.githubusercontent.com/neelsmith/eagl-texts/refs/heads/main/texts/lysias1.cex">
+    </div>
+
+    <button id="loadCorpusBtn">Load and Analyze Corpus</button>
+
+    <div id="resultsArea">
+        <p>Enter a corpus URL and click "Load and Analyze Corpus" to see results.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const corpusUrlInput = document.getElementById('corpusUrl');
+            const loadCorpusBtn = document.getElementById('loadCorpusBtn');
+            const resultsArea = document.getElementById('resultsArea');
+
+            let literaryGreekOrthography;
+            let validCharset = [];
+
+            function initializeOrthography() {
+                if (typeof greeklib !== 'undefined' && typeof greeklib.literarygreek === 'function') {
+                    literaryGreekOrthography = greeklib.literarygreek();
+                    if (literaryGreekOrthography && typeof literaryGreekOrthography.charset === 'function') {
+                        validCharset = literaryGreekOrthography.charset();
+                        console.log("Valid characters for literary Greek:", validCharset);
+                        return true;
+                    } else {
+                        console.error("Could not get charset from literaryGreekOrthography object.");
+                        return false;
+                    }
+                } else {
+                    console.error("greeklib.literarygreek() function not found.");
+                    return false;
+                }
+            }
+            
+            if (!initializeOrthography()) {
+                 console.warn("greeklib or orthography not ready on DOMContentLoaded. Will try again on button click.");
+            }
+
+
+            loadCorpusBtn.addEventListener('click', () => {
+                const url = corpusUrlInput.value.trim();
+                if (!url) {
+                    resultsArea.innerHTML = '<p class="error">Please enter a URL.</p>';
+                    return;
+                }
+
+                resultsArea.innerHTML = '<p>Loading corpus data...</p>';
+
+                if (validCharset.length === 0) { // Try to initialize again if failed earlier
+                    if (!initializeOrthography()) {
+                        resultsArea.innerHTML = '<p class="error">Error: greeklib.js or `literarygreek` function not available. Cannot perform character validation.</p>';
+                        // Continue without character validation if core CEX/tokenization can still work
+                    }
+                }
+
+                const parser = new CEXParser();
+                parser.loadFromUrl(url)
+                    .then(loadedParser => {
+                        console.log('CEX data loaded from URL successfully!');
+                        
+                        const ctsDataString = loadedParser.getDelimitedData("ctsdata");
+                        if (!ctsDataString) {
+                            resultsArea.innerHTML = '<p class="error">No "ctsdata" block found in the CEX file.</p>';
+                            return;
+                        }
+
+                        const ctsLines = ctsDataString.split('\n').filter(line => line.trim() !== '');
+                        
+                        if (ctsLines.length === 0) {
+                            resultsArea.innerHTML = '<p class="error">The "ctsdata" block is empty or contains only whitespace.</p>';
+                            return;
+                        }
+                        console.log(`Found ${ctsLines.length} lines of CTS data.`);
+                        
+                        if (typeof greeklib === 'undefined' || typeof greeklib.tokenize !== 'function') {
+                            resultsArea.innerHTML = '<p class="error">greeklib.js is not loaded correctly or greeklib.tokenize is not a function. Cannot tokenize.</p>';
+                            console.error('greeklib or greeklib.tokenize is undefined.');
+                            return;
+                        }
+                        
+                        const tokens = greeklib.tokenize(ctsLines);
+                        console.log(`Tokenized into ${tokens.length} tokens.`);
+
+                        displayResults(tokens);
+
+                    })
+                    .catch(error => {
+                        console.error('Failed to load or parse CEX from URL:', error);
+                        resultsArea.innerHTML = `<p class="error">Failed to load or parse CEX: ${error.message}</p>`;
+                    });
+            });
+
+            function escapeHtml(unsafe) {
+                const tempEl = document.createElement('div');
+                tempEl.textContent = unsafe;
+                return tempEl.innerHTML;
+            }
+
+            function displayResults(tokens) {
+                resultsArea.innerHTML = ''; 
+
+                const header = document.createElement('h2');
+                header.textContent = 'Corpus Analysis Results';
+                resultsArea.appendChild(header);
+
+                const tokenCountP = document.createElement('p');
+                tokenCountP.textContent = `Total tokens in corpus: ${tokens.length}`;
+                resultsArea.appendChild(tokenCountP);
+
+                if (validCharset.length === 0) {
+                    const warningP = document.createElement('p');
+                    warningP.classList.add('error'); // Use 'error' class for visibility
+                    warningP.textContent = 'Warning: Valid character set for literary Greek could not be determined. Character validation will not be performed.';
+                    resultsArea.appendChild(warningP);
+                }
+
+
+                if (tokens.length > 0) {
+                    const firstTokensHeader = document.createElement('h3');
+                    firstTokensHeader.textContent = 'First 5 Tokens (with character validation):';
+                    resultsArea.appendChild(firstTokensHeader);
+
+                    const tokensToShow = tokens.slice(0, 5);
+                    tokensToShow.forEach(token => {
+                        const tokenDiv = document.createElement('div');
+                        tokenDiv.classList.add('token-entry');
+
+                        let highlightedDisplayHtml = ''; 
+                        const originalText = token.text;
+                        // Normalize the text to NFC (precomposed characters)
+                        const normalizedText = originalText ? originalText.normalize('NFC') : ""; 
+
+                        if (normalizedText && validCharset.length > 0) {
+                            for (const char of normalizedText) { // Iterate over characters of the normalized text
+                                const safeChar = escapeHtml(char);
+                                if (validCharset.includes(char)) { // Check the character from the normalized string
+                                    highlightedDisplayHtml += `<span class="valid-char">${safeChar}</span>`;
+                                } else {
+                                    highlightedDisplayHtml += `<span class="invalid-char">${safeChar}</span>`;
+                                }
+                            }
+                        } else if (originalText) { 
+                            // If no charset for validation, or normalizedText is empty but original existed,
+                            // display the normalized (or original if normalization failed) text, unhighlighted and escaped.
+                            highlightedDisplayHtml = escapeHtml(normalizedText || originalText);
+                        } else {
+                            highlightedDisplayHtml = "[empty text]";
+                        }
+                        
+                        // Indicate that the displayed text is the normalized form
+                        tokenDiv.innerHTML = `
+                            <strong>URN:</strong> ${token.urn}<br>
+                            <strong>Text (normalized):</strong> ${highlightedDisplayHtml}
+                        `;
+                        resultsArea.appendChild(tokenDiv);
+                    });
+                } else {
+                    const noTokensP = document.createElement('p');
+                    noTokensP.textContent = 'No tokens were generated from the corpus data.';
+                    resultsArea.appendChild(noTokensP);
+                }
+            }
+        });
+    </script></body>
+</html>
