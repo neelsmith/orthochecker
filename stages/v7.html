@@ -34,8 +34,8 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin-bottom: 10px;
-            margin-right: 5px;
+            margin-bottom: 10px; /* Consistent margin */
+            margin-right: 5px; /* Space between buttons */
         }
         button:hover {
             background-color: #0056b3;
@@ -52,7 +52,7 @@
             background-color: #f9f9f9;
             border-radius: 4px;
         }
-        .summary-stats p, .pagination-controls-container { /* Removed .invalid-toggle-container style */
+        .summary-stats p, .invalid-toggle-container, .pagination-controls-container {
             margin-bottom: 0.75em;
         }
         .token-entry {
@@ -64,7 +64,7 @@
         .token-entry:last-child {
             border-bottom: none;
         }
-        #allInvalidTokensContainer { /* This container wraps controls and list */
+        #allInvalidTokensContainer {
              margin-top: 15px;
              padding-top: 10px;
              border-top: 1px solid #ddd;
@@ -72,19 +72,19 @@
         .pagination-controls-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 10px; /* Spacing between control elements */
             margin-bottom: 10px;
             flex-wrap: wrap;
         }
         .pagination-controls-container label {
-            margin-bottom: 0;
+            margin-bottom: 0; /* Override default label margin */
             margin-right: 5px;
         }
         .pagination-controls-container select {
             min-width: 80px;
         }
         .page-info {
-            margin: 0 10px;
+            margin: 0 10px; /* Space around page info text */
         }
         h2, h3 {
             margin-top: 0;
@@ -123,7 +123,7 @@
 
             let allInvalidTokensGlobal = [];
             let currentPageGlobal = 1;
-            let pageSizeGlobal = 20; 
+            let pageSizeGlobal = 20; // Default & minimum page size
 
             function initializeOrthography() {
                 if (typeof greeklib !== 'undefined' && typeof greeklib.literarygreek === 'function') {
@@ -148,9 +148,8 @@
                 }
                 resultsArea.innerHTML = '<p>Loading corpus data...</p>';
                 if (validCharset.length === 0 && !initializeOrthography()) {
-                    // Update message, character validation will be skipped but app may proceed
-                    const initialMsg = resultsArea.innerHTML;
-                    resultsArea.innerHTML = initialMsg + '<p class="warning">Orthography setup failed. Character validation will be skipped.</p>';
+                    resultsArea.innerHTML = '<p class="error">Error: Orthography setup failed. Character validation will be skipped.</p>';
+                    // Allow to proceed, but char validation won't work.
                 }
 
                 const parser = new CEXParser();
@@ -213,7 +212,7 @@
                 summaryDiv.appendChild(tokenCountP);
 
                 let invalidTokenCount = 0;
-                allInvalidTokensGlobal = []; 
+                allInvalidTokensGlobal = []; // Reset global list for new analysis
 
                 if (validCharset.length > 0) {
                     for (const token of tokens) {
@@ -242,34 +241,51 @@
                     summaryDiv.appendChild(warningP);
                 }
 
-                // --- Container for all invalid tokens details (pagination + list) ---
                 const allInvalidTokensContainer = document.createElement('div');
                 allInvalidTokensContainer.id = 'allInvalidTokensContainer';
-                allInvalidTokensContainer.classList.add('hidden'); // Start hidden, show if needed
+                allInvalidTokensContainer.classList.add('hidden'); // Initially hidden
                 resultsArea.appendChild(allInvalidTokensContainer);
-                
+
                 const paginationControlsDiv = document.createElement('div');
                 paginationControlsDiv.id = 'paginationControlsDiv'; 
-                
+                // This div will hold page size selector, prev/next buttons, page info
+
                 const allInvalidTokensDisplayArea = document.createElement('div');
                 allInvalidTokensDisplayArea.id = 'allInvalidTokensDisplayArea';
+                // This div will hold the actual list of tokens
 
-                // --- Removed checkbox toggle logic ---
-                
                 if (invalidTokenCount > 0 && validCharset.length > 0) {
-                    allInvalidTokensContainer.classList.remove('hidden'); // Make the container visible
-
-                    // Add controls and list area to the container
-                    allInvalidTokensContainer.appendChild(paginationControlsDiv);
-                    allInvalidTokensContainer.appendChild(allInvalidTokensDisplayArea);
+                    const toggleContainer = document.createElement('div');
+                    toggleContainer.classList.add('invalid-toggle-container');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = 'showInvalidTokensCheckbox';
+                    const label = document.createElement('label');
+                    label.htmlFor = 'showInvalidTokensCheckbox';
+                    label.style.display = 'inline-block'; // For proper alignment with checkbox
+                    label.style.marginLeft = '5px';
+                    label.textContent = 'Show details for invalid tokens';
                     
-                    currentPageGlobal = 1; // Reset to first page
-                    // pageSizeGlobal is preserved from previous run or defaults
-                    setupPaginationControls(paginationControlsDiv, allInvalidTokensDisplayArea); 
-                    renderPaginatedInvalidTokens(allInvalidTokensDisplayArea, paginationControlsDiv); 
-                } else {
-                    allInvalidTokensContainer.innerHTML = ''; // Clear if no invalid tokens or no charset
-                    allInvalidTokensContainer.classList.add('hidden'); // Ensure it stays hidden
+                    toggleContainer.appendChild(checkbox);
+                    toggleContainer.appendChild(label);
+                    summaryDiv.appendChild(toggleContainer); 
+
+                    allInvalidTokensContainer.appendChild(paginationControlsDiv); // Add pagination first
+                    allInvalidTokensContainer.appendChild(allInvalidTokensDisplayArea); // Then the list area
+
+                    checkbox.addEventListener('change', (event) => {
+                        if (event.target.checked) {
+                            allInvalidTokensContainer.classList.remove('hidden');
+                            currentPageGlobal = 1; // Reset to first page
+                            // pageSizeGlobal is preserved or default 20
+                            setupPaginationControls(paginationControlsDiv, allInvalidTokensDisplayArea); // Create/update controls
+                            renderPaginatedInvalidTokens(allInvalidTokensDisplayArea, paginationControlsDiv); // Render first page
+                        } else {
+                            allInvalidTokensContainer.classList.add('hidden');
+                            allInvalidTokensDisplayArea.innerHTML = ''; 
+                            paginationControlsDiv.innerHTML = ''; // Clear controls as well
+                        }
+                    });
                 }
                 
                 if (tokens.length === 0 && ctsLines && ctsLines.length > 0) {
@@ -280,12 +296,13 @@
             }
 
             function setupPaginationControls(controlsContainer, listContainer) {
-                controlsContainer.innerHTML = ''; 
-                if (allInvalidTokensGlobal.length === 0) return; 
+                controlsContainer.innerHTML = ''; // Clear previous controls
+                if (allInvalidTokensGlobal.length === 0) return; // No controls if no items
 
                 const pControlsFlexContainer = document.createElement('div');
                 pControlsFlexContainer.classList.add('pagination-controls-container');
 
+                // Page Size Selector
                 const sizeLabel = document.createElement('label');
                 sizeLabel.htmlFor = 'pageSizeSelect';
                 sizeLabel.textContent = 'Items per page:';
@@ -293,7 +310,7 @@
 
                 const pageSizeSelect = document.createElement('select');
                 pageSizeSelect.id = 'pageSizeSelect';
-                const sizes = [20, 50, 100, 'All'];
+                const sizes = [20, 50, 100, 'All']; // Min page size is 20
                 sizes.forEach(size => {
                     const option = document.createElement('option');
                     option.value = size;
@@ -306,11 +323,12 @@
                 pageSizeSelect.addEventListener('change', (e) => {
                     const newSize = e.target.value;
                     pageSizeGlobal = (newSize.toLowerCase() === 'all') ? 'All' : parseInt(newSize, 10);
-                    currentPageGlobal = 1; 
-                    renderPaginatedInvalidTokens(listContainer, controlsContainer); 
+                    currentPageGlobal = 1; // Reset to first page on size change
+                    renderPaginatedInvalidTokens(listContainer, controlsContainer); // Re-render tokens and update controls
                 });
                 pControlsFlexContainer.appendChild(pageSizeSelect);
 
+                // Prev Button
                 const prevButton = document.createElement('button');
                 prevButton.id = 'prevPageBtn';
                 prevButton.textContent = '‹ Previous';
@@ -322,11 +340,13 @@
                 });
                 pControlsFlexContainer.appendChild(prevButton);
 
+                // Page Info
                 const pageInfo = document.createElement('span');
                 pageInfo.id = 'pageInfoSpan';
                 pageInfo.classList.add('page-info');
                 pControlsFlexContainer.appendChild(pageInfo);
 
+                // Next Button
                 const nextButton = document.createElement('button');
                 nextButton.id = 'nextPageBtn';
                 nextButton.textContent = 'Next ›';
@@ -343,7 +363,7 @@
             }
 
             function renderPaginatedInvalidTokens(displayElement, controlsContainer) {
-                displayElement.innerHTML = ''; 
+                displayElement.innerHTML = ''; // Clear previous list content
 
                 if (allInvalidTokensGlobal.length === 0) {
                     displayElement.innerHTML = '<p>No invalid tokens to display.</p>';
@@ -360,9 +380,10 @@
                 if (pageSizeGlobal === 'All') {
                     itemsToRender = allInvalidTokensGlobal;
                     totalPages = 1;
-                    currentPageGlobal = 1; 
+                    currentPageGlobal = 1; // Always page 1 if "All"
                 } else {
                     totalPages = Math.ceil(totalItems / pageSizeGlobal);
+                    // Ensure currentPageGlobal is within valid range after potential list/size changes
                     if (currentPageGlobal > totalPages && totalPages > 0) currentPageGlobal = totalPages;
                     if (currentPageGlobal < 1) currentPageGlobal = 1;
                     
@@ -371,7 +392,7 @@
                 }
                 
                 const listHeader = document.createElement('h3');
-                if (pageSizeGlobal === 'All' || totalItems <= pageSizeGlobal) { 
+                if (pageSizeGlobal === 'All' || totalItems <= pageSizeGlobal) { // If "All" or all items fit on one page
                      listHeader.textContent = `List of ${totalItems} Invalid Token(s):`;
                 } else {
                      const startItemNum = (currentPageGlobal - 1) * pageSizeGlobal + 1;
@@ -388,6 +409,7 @@
                     displayElement.appendChild(tokenDiv);
                 });
 
+                // Update pagination controls' state
                 const prevButton = controlsContainer.querySelector('#prevPageBtn');
                 const nextButton = controlsContainer.querySelector('#nextPageBtn');
                 const pageInfo = controlsContainer.querySelector('#pageInfoSpan');
@@ -398,7 +420,7 @@
                      if (totalPages > 0 && totalItems > 0) {
                         pageInfo.textContent = `Page ${currentPageGlobal} of ${totalPages}`;
                      } else {
-                        pageInfo.textContent = ""; 
+                        pageInfo.textContent = ""; // No page info if no items or pages
                      }
                 }
             }

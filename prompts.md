@@ -55,3 +55,14 @@ Excellent. Now give the user the option of displaying all invalid tokens. If the
 ---
 
 Thanks! Now remove the display of the first five tokens.
+
+---
+
+
+---
+
+Great. Let's make the display of tokens with errors pageable. Let the user set a page size (number of items to display at a time), including an option to show *all* tokens with errors. Let the user page through the results one page-sized list at a time. Make the minimum page size 20.
+
+---
+
+Excellent. With that in place, let's remove the choice of displaying results, and just display the first page of results automatically.
