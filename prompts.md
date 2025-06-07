@@ -45,4 +45,9 @@ Great! Now let's modify the comparison: instead of checking the raw value of the
 
 Super. Now compile a list of tokens with invalid forms by testing the normalized precomposed value of the `text` property of all tokens in the corpus. Display the number of invalid tokens you found.
 
+---
 
+Excellent. Now give the user the option of displaying all invalid tokens. If the user chooses to display them, display each token as follows:
+
+- the value of the `urn` property
+- the `text` property highlighted so that valid characters are colored green and invalid characters are colored red
